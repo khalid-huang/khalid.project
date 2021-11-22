@@ -59,6 +59,7 @@ spec:
         app: opentelemetry
         component: otel-collector
     spec:
+      nodeName: h00525479-dev-02
       containers:
         - name: otel-collector
           image: otel/opentelemetry-collector-contrib:0.37.1
