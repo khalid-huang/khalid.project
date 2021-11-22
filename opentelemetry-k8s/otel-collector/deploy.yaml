@@ -13,7 +13,7 @@ data:
 
     exporters:
       prometheus:
-        endpoint: "prometheus.monitoring:9090"
+        endpoint: "0.0.0.0:8889"
         const_labels:
           label1: value1
       logging:
@@ -106,5 +106,8 @@ spec:
   ports:
     - name: metrics # Default endpoint for querying metrics.
       port: 8888
+    - name: metrics1
+      port: 8889
+
   selector:
     component: otel-collector
