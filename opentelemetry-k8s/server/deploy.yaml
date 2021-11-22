@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-server
+  namespace: monitoring
+spec:
+  selector:
+    app: demo-server
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 7080
+      targetPort: 7080
+      nodePort: 31120
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: demo-server
+  name: demo-server
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      monitor: demo-server
+  template:
+    metadata:
+      labels:
+        monitor: demo-server
+    spec:
+      #     use label to selector node
+      nodeName: h00525479-dev-0003
+      containers:
+        - name: demo-server
+          image: kevindavis/demo-server:0.01
+          ports:
+            - containerPort: 7080
+              protocol: TCP
