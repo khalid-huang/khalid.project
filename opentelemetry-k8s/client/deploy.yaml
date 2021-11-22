@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  selector:
+    app: demo-server
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 31120
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: demo-server
+  name: demo-server
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      k8s-app: kubeedge
+      kubeedge: edgemesh-server
+  template:
+    metadata:
+      labels:
+        k8s-app: kubeedge
+        kubeedge: edgemesh-server
+    spec:
+      hostNetwork: true
+      #     use label to selector node
+      nodeName: cloud-node
+      containers:
+        - name: edgemesh-server
+          image: kubeedge/edgemesh-server:latest
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          ports:
+            - containerPort: 20004
+              name: relay
+              protocol: TCP
