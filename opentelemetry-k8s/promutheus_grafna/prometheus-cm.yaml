@@ -20,8 +20,8 @@ data:
       - job_name: 'otel-collector'
         scrape_interval: 10s
         static_configs:
-        - targets: ['otel-collector.monitoring:8888']
-        - targets: ['otel-collector.monitoring:8889']
+        - targets: ['119.8.58.38:31522']
+        - targets: ['119.8.58.38:31961']
       - job_name: 'prometheus'
         static_configs:
         - targets: ['localhost:9090']
