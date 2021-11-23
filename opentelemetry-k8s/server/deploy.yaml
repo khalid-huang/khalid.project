@@ -23,11 +23,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      monitor: demo-server
+      app: demo-server
   template:
     metadata:
       labels:
-        monitor: demo-server
+        app: demo-server
     spec:
       #     use label to selector node
       nodeName: h00525479-dev-0003
@@ -36,7 +36,7 @@ spec:
           env: 
           - name: OTEL_EXPORTER_OTLP_ENDPOINT
             value: 119.8.58.38:31963
-          image: kevindavis/demo-server:0.01
+          image: kevindavis/demo-server:0.02
           ports:
             - containerPort: 7080
               protocol: TCP

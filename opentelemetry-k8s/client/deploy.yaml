@@ -8,11 +8,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      monitor: demo-client
+      app: demo-client
   template:
     metadata:
       labels:
-        monitor: demo-client
+        app: demo-client
     spec:
       #     use label to selector node
       nodeName: h00525479-dev-0003
@@ -21,4 +21,6 @@ spec:
         env:
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: 119.8.58.38:31963
-        image: kevindavis/demo-client:0.01
+        - name: DEMO_SERVER_ENDPOINT
+          value: http://119.8.58.38:31121/hello
+        image: kevindavis/demo-client:0.02
