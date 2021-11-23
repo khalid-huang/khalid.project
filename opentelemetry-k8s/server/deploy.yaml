@@ -11,7 +11,7 @@ spec:
     - protocol: TCP
       port: 7080
       targetPort: 7080
-      nodePort: 31120
+      nodePort: 31121
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,6 +33,9 @@ spec:
       nodeName: h00525479-dev-0003
       containers:
         - name: demo-server
+          env: 
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: 119.8.58.38:31963
           image: kevindavis/demo-server:0.01
           ports:
             - containerPort: 7080

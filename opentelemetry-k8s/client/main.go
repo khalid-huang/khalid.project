@@ -54,6 +54,7 @@ func initProvider() func() {
 	if !ok {
 		otelAgentAddr = "0.0.0.0:4317"
 	}
+    fmt.Println("otelAgentAddr: ", otelAgentAddr)
 
 	metricClient := otlpmetricgrpc.NewClient(
 		otlpmetricgrpc.WithInsecure(),
@@ -124,6 +125,7 @@ func handleErr(err error, message string) {
 }
 
 func main() {
+    fmt.Println("I am demo client")
 	shutdown := initProvider()
 	defer shutdown()
 

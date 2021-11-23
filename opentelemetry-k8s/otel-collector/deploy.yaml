@@ -115,5 +115,10 @@ spec:
       protocol: TCP
       targetPort: 8889
       nodePort: 31961
+    - name: otel-endpoint
+      port: 4317
+      protocol: TCP
+      targetPort: 4317
+      nodePort: 31963
   selector:
     component: otel-collector

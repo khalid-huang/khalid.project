@@ -15,5 +15,5 @@ FROM golang:1.17
 COPY . /usr/src/client/
 WORKDIR /usr/src/client/
 RUN go env -w GOPROXY=direct
-RUN go install ./main.go
+RUN go install ./client/main.go
 CMD ["/go/bin/main"]
