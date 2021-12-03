@@ -23,31 +23,33 @@ const (
 )
 
 var (
-	instanceKeyOfSelf = ""
-	distributeLockKey = cache.GenMetaDistributeKey(common.BuildJobPrefix)
+	instanceKeyOfSelf   = ""
+	distributeLockKey   = cache.GenMetaDistributeKey(common.BuildJobPrefix)
 	instanceNameListKey = cache.GenInstanceNameListKey(common.BuildJobPrefix)
 )
 
 type LivenessProbe interface {
-	prepare() // 准备工作
+	keepalive() // 准备工作
 	isLive() bool
 	clear() // 清理工作
 }
 
+// Instance 作为多实例部署的代码实现
 type Instance interface {
 	LivenessProbe
 	Name() string // 返回名字
-	StartUp() //启动应用实例
-	Shutdown() //关闭应用
-	postStart() //应用实例启动之后的操作
-	preStop() // 应用实例关闭之前的操作
+	StartUp()     // 启动应用实例
+	Shutdown()    // 关闭应用
+	collaborate() // 多实例协作的内容，比如做任务接管
+	runController() // 启动组件，比如请求控制器组件
+	preStop()     // 应用实例关闭之前的操作
 }
 
 type instanceWithRedis struct {
-	name string
-	stopCh chan struct{} // 程序自动调用关闭实例
-	signalCh chan os.Signal // 接收到syscall.SIGINT和syscall.SIGTERM 信号量关闭
-	liveCh chan struct{} // 程序存活
+	name              string
+	stopCh            chan struct{}  // 程序自动调用关闭实例
+	signalCh          chan os.Signal // 接收到syscall.SIGINT和syscall.SIGTERM 信号量关闭
+	liveCh            chan struct{}  // 程序存活
 	requestController *async.RequestController
 }
 
@@ -72,7 +74,7 @@ func newInstance() Instance {
 	return instance
 }
 
-func (instance *instanceWithRedis) postStart() {
+func (instance *instanceWithRedis) collaborate() {
 	// 确保把自己添加到实例列表中
 	result := retrieveAccessOfUpdateInstanceNameList()
 	if !result {
@@ -92,8 +94,7 @@ func (instance *instanceWithRedis) postStart() {
 	logrus.Info("INFO: add self to instanceNameList successful")
 	returnAccessOfUpdateInstanceNameList()
 
-	// 启动requestController
-	go instance.requestController.StartUp()
+
 
 	// 启动一个协程，周期性获取kbuildresource/meta锁，如果成功，进行扫描接收其他崩溃的instance的job任务
 	go func() {
@@ -114,7 +115,7 @@ func (instance *instanceWithRedis) postStart() {
 
 // 做服务优雅停机
 func (instance *instanceWithRedis) preStop() {
-	ctx, cancel := context.WithTimeout(context.Background(), 15 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	if err := beego.BeeApp.Server.Shutdown(ctx); err != nil {
 		logrus.Fatal("ERROR: server force to shutdown: ", err)
@@ -131,17 +132,24 @@ func (instance *instanceWithRedis) Shutdown() {
 	close(instance.stopCh)
 }
 
+// 这里如果有多个是要做成注册制的，类似kubeedge
+func (instance *instanceWithRedis) runController() {
+	// 启动requestController
+	go instance.requestController.StartUp()
+}
+
 // StartUp 这个函数需要传入一个finishCh来通知外部调用者，内部已经初始化完成
 func (instance *instanceWithRedis) StartUp() {
 	//监听信号
 	signal.Notify(instance.signalCh, syscall.SIGINT, syscall.SIGTERM)
 
 	// 做存活性探针的相关工作
-	instance.prepare()
+	instance.keepalive()
 	defer instance.clear()
 
-	instance.postStart()
-	// 监控各种信号
+	instance.collaborate()
+
+	instance.runController() // 做组件的启动
 
 	t := time.NewTicker(60 * time.Second) // 每隔60s打印一些信息
 	for {
@@ -152,7 +160,7 @@ func (instance *instanceWithRedis) StartUp() {
 			instance.preStop()
 			logrus.Info("INFO: finish preStop")
 			return
-		case signalVal := <- instance.signalCh:
+		case signalVal := <-instance.signalCh:
 			logrus.Infof("INFO: shutting down the sever beacause signalCh %v,", signalVal)
 			instance.Shutdown()
 		case <-t.C:
@@ -166,7 +174,7 @@ func (instance *instanceWithRedis) StartUp() {
 }
 
 // 基于redis 来实现存活性验证
-func (instance *instanceWithRedis) prepare() {
+func (instance *instanceWithRedis) keepalive() {
 	// 不断续期，直到死亡
 	_, err := cache.LockKey(instanceKeyOfSelf, lockLeaseTime)
 	if err != nil {
@@ -203,7 +211,7 @@ func (instance *instanceWithRedis) clear() {
 }
 
 func (instance *instanceWithRedis) startClearDeadInstances() {
-	logrus.Info("INFO: start to retrieve access of takeover job of other instance")
+	logrus.Info("INFO: collaborate to retrieve access of takeover job of other instance")
 	isSuccess := retrieveAccessOfTakeOver()
 	if !isSuccess {
 		logrus.Infof("INFO: retrieveAccessOfTakeOver failed, skip clearDeadInstances")
@@ -213,7 +221,7 @@ func (instance *instanceWithRedis) startClearDeadInstances() {
 	defer returnAccessOfTakeOver()
 
 	// 获取没成功，开始检索任务
-	logrus.Infof("INFO: retrieveAccessOfTakeOver successful, start clearDeadInstance")
+	logrus.Infof("INFO: retrieveAccessOfTakeOver successful, collaborate clearDeadInstance")
 	instanceNameList, err := cache.GetInstanceNameList()
 	if err != nil {
 		return
@@ -266,7 +274,7 @@ func retrieveAccessOfUpdateInstanceNameList() bool {
 			continue
 		} else if !result {
 			// 获取不到，重新随机等待，再重新获取
-			time.Sleep(time.Duration(200 + rand.Int63n(1000)) * time.Millisecond)
+			time.Sleep(time.Duration(200+rand.Int63n(1000)) * time.Millisecond)
 			continue
 		}
 		// 成功直接break
@@ -308,7 +316,5 @@ func setInstanceNameListToCache(liveInstances []string) error {
 		logrus.Error("ERROR: setInstanceNameListToCache unmarshal failed")
 		return err
 	}
-	return cache.RedisClient.Set(instanceNameListKey, instanceNameListJsonData,0).Err()
+	return cache.RedisClient.Set(instanceNameListKey, instanceNameListJsonData, 0).Err()
 }
-
-
