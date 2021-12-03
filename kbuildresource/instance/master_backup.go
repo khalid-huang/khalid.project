@@ -67,7 +67,7 @@ func (m *MasterBackupJob) tryBecomeMaster() {
 	}
 	if result {
 		m.role = ROLEMASTER
-		logrus.Infof("INFO: become master, start job %s", m.name)
+		logrus.Infof("INFO: become master, collaborate job %s", m.name)
 		go m.masterCallback()
 		// 不断进行续期，直到无法续期
 		ticker := time.NewTicker(RenewInterval)
@@ -97,7 +97,7 @@ func (m *MasterBackupJob) tryBecomeMaster() {
 		}()
 	} else {
 		m.role = ROLEBACKUP
-		logrus.Info("INFO: become worker, no need to start job %s", m.name)
+		logrus.Info("INFO: become worker, no need to collaborate job %s", m.name)
 	}
 }
 
